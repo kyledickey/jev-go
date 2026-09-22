@@ -2,13 +2,18 @@ package jev
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
 )
 
-const defaultTimeout = 30 * time.Second
+const (
+	defaultTimeout = 30 * time.Second
+	defaultBaseURL = "https://api.typesafe.ai/v1"
+)
 
 var (
 	// ErrNilClientOpts means one or more of the options provided was nil
@@ -17,6 +22,8 @@ var (
 	ErrAPIKeyMissing = errors.New("jev: API key is required; set TYPESAFE_API_KEY or use WithAPIKey")
 	// ErrNilHTTPClient means the provided HTTP client was nil
 	ErrNilHTTPClient = errors.New("jev: HTTP client must not be nil")
+	// ErrInvalidBaseURL means the configured API base URL is invalid
+	ErrInvalidBaseURL = errors.New("jev: invalid base URL")
 )
 
 // Client holds all the configuration for Jev API requests
@@ -26,12 +33,14 @@ var (
 type Client struct {
 	apiKey     string
 	httpClient *http.Client
+	baseURL    *url.URL
 }
 
 // clientConfig is temporary configuration and is only used during construction.
 type clientConfig struct {
 	apiKey     string
 	httpClient *http.Client
+	baseURL    string
 }
 
 // Option configures a client during NewClient
@@ -60,6 +69,13 @@ func WithHTTPClient(client *http.Client) Option {
 	}
 }
 
+// WithBaseURL overrides the API base URL.
+func WithBaseURL(baseURL string) Option {
+	return func(cfg *clientConfig) {
+		cfg.baseURL = baseURL
+	}
+}
+
 // NewClient constructs a Jev client from defaults and provided options
 //
 // The API key defaults to the value of TYPESAFE_API_KEY. Changing the
@@ -67,7 +83,8 @@ func WithHTTPClient(client *http.Client) Option {
 // not check the validity of the API key.
 func NewClient(opts ...Option) (*Client, error) {
 	cfg := clientConfig{
-		apiKey: os.Getenv("TYPESAFE_API_KEY"),
+		apiKey:  os.Getenv("TYPESAFE_API_KEY"),
+		baseURL: defaultBaseURL,
 		httpClient: &http.Client{
 			Timeout: defaultTimeout,
 		},
@@ -89,8 +106,32 @@ func NewClient(opts ...Option) (*Client, error) {
 		return nil, ErrNilHTTPClient
 	}
 
+	baseURL, err := parseBaseURL(cfg.baseURL)
+	if err != nil {
+		return nil, err
+	}
+
 	return &Client{
 		apiKey:     cfg.apiKey,
 		httpClient: cfg.httpClient,
+		baseURL:    baseURL,
 	}, nil
+}
+
+// parseBaseURL validates the structural requirements of an API base URL.
+func parseBaseURL(raw string) (*url.URL, error) {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return nil, fmt.Errorf("%w: malformed URL", ErrInvalidBaseURL)
+	}
+
+	if (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" {
+		return nil, fmt.Errorf("%w: URL was not HTTP(S) or had an invalid hostname", ErrInvalidBaseURL)
+	}
+
+	if u.User != nil {
+		return nil, fmt.Errorf("%w: credentials must not appear in the URL", ErrInvalidBaseURL)
+	}
+
+	return u, nil
 }
