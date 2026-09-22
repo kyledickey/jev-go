@@ -1,8 +1,13 @@
 package jev
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
+	"net/http"
 )
 
 // DefaultModel is used when a request does not specify a model.
@@ -96,4 +101,61 @@ func (r *SystemOneResponse) UnmarshalJSON(data []byte) error {
 	}
 
 	return nil
+}
+
+// SystemOne calls the API to evaluate the set of questions.
+//
+// Performs one attempt, no retry loop.
+func (c *Client) SystemOne(ctx context.Context, req SystemOneRequest) (*SystemOneResponse, error) {
+	if ctx == nil {
+		return nil, errors.New("jev: context must not be nil")
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("jev: evaluate: %w", err)
+	}
+
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, fmt.Errorf("jev: encode request: %w", err)
+	}
+
+	ep := c.baseURL.JoinPath("systemone")
+	httpReq, err := http.NewRequestWithContext(
+		ctx, http.MethodPost, ep.String(), bytes.NewReader(body),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("jev: create requests: %w", err)
+	}
+
+	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("Accept", "application/json")
+
+	httpResp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("jev: send request: %w", err)
+	}
+	defer httpResp.Body.Close()
+
+	respBody, readErr := io.ReadAll(httpResp.Body)
+	if httpResp.StatusCode < http.StatusOK ||
+		httpResp.StatusCode >= http.StatusMultipleChoices {
+		return nil, &APIError{
+			StatusCode: httpResp.StatusCode,
+			Header:     httpResp.Header.Clone(),
+			Body:       respBody,
+			readErr:    readErr,
+		}
+	}
+
+	if readErr != nil {
+		return nil, fmt.Errorf("jev: read response: %w", readErr)
+	}
+
+	var resp SystemOneResponse
+	if err := json.Unmarshal(respBody, &resp); err != nil {
+		return nil, fmt.Errorf("jev: decode evaluation response: %w", err)
+	}
+
+	return &resp, nil
 }
