@@ -1,9 +1,18 @@
 package jev
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 // DefaultModel is used when a request does not specify a model.
 const DefaultModel = "jev-latest"
+
+// Usage reports the token counts returned by the service.
+type Usage struct {
+	InputTokens  int64 `json:"input_tokens"`
+	OutputTokens int64 `json:"output_tokens"`
+}
 
 // SystemOneRequest contains the input for one evaluation.
 type SystemOneRequest struct {
@@ -28,11 +37,63 @@ type SystemOneRequest struct {
 	Questions map[string]Question `json:"questions"`
 }
 
-// MarshalJSON encodes the request.
+// SystemOneResponse contains an evaluation's results and metadata.
+type SystemOneResponse struct {
+	// Model identifies the model that performed the evaluation.
+	Model string `json:"model"`
+
+	// Answers uses the same identifiers as the request's Questions map.
+	Answers map[string]Answer `json:"answers"`
+
+	// Usage contains the service-reported token counts.
+	Usage Usage `json:"usage"`
+}
+
+// MarshalJSON encodes an evaluation request.
 func (r SystemOneRequest) MarshalJSON() ([]byte, error) {
 	if r.Model == "" {
 		r.Model = DefaultModel
 	}
 	type wireRequest SystemOneRequest
 	return json.Marshal(wireRequest(r))
+}
+
+// UnmarshalJSON decodes an evaluation response.
+func (r *SystemOneResponse) UnmarshalJSON(data []byte) error {
+	var wire struct {
+		Model   string                     `json:"model"`
+		Answers map[string]json.RawMessage `json:"answers"`
+		Usage   json.RawMessage            `json:"usage"`
+	}
+
+	if err := unmarshalRequired(
+		data, &wire, "model", "answers", "usage",
+	); err != nil {
+		return fmt.Errorf("jev: decode response: %w", err)
+	}
+
+	var usage Usage
+	if err := unmarshalRequired(
+		wire.Usage, &usage, "input_tokens", "output_tokens",
+	); err != nil {
+		return fmt.Errorf("jev: decode usage: %w", err)
+	}
+
+	answers := make(map[string]Answer, len(wire.Answers))
+
+	for id, raw := range wire.Answers {
+		answer, err := decodeAnswer(raw)
+		if err != nil {
+			return fmt.Errorf("jev: decode answer %q: %w", id, err)
+		}
+		answers[id] = answer
+	}
+
+	*r = SystemOneResponse{
+		Model:   wire.Model,
+		Answers: answers,
+		Usage:   usage,
+	}
+
+	return nil
 }

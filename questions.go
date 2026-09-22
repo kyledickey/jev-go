@@ -11,12 +11,6 @@ type Question interface {
 	isQuestion()
 }
 
-var (
-	_ Question = NoulQuestion{}
-	_ Question = ChoiceQuestion{}
-	_ Question = ScoreQuestion{}
-)
-
 // NoulQuestion asks for the probability that a statement is true.
 //
 // see https://docs.typesafe.ai/primitives/noul
@@ -41,22 +35,6 @@ type NoulCriteria struct {
 	False any `json:"false,omitempty"`
 }
 
-// isQuestion marks NoulQuestion as a question type
-func (NoulQuestion) isQuestion() {}
-
-// MarshalJSON implements json.Marshaler
-func (q NoulQuestion) MarshalJSON() ([]byte, error) {
-	return json.Marshal(struct {
-		Type         string        `json:"type"`
-		Instructions any           `json:"instructions"`
-		Criteria     *NoulCriteria `json:"criteria,omitempty"`
-	}{
-		Type:         "noul",
-		Instructions: q.Instructions,
-		Criteria:     q.Criteria,
-	})
-}
-
 // ChoiceQuestion asks the model to select one named option.
 //
 // see https://docs.typesafe.ai/primitives/choice
@@ -72,22 +50,6 @@ type ChoiceQuestion struct {
 	//
 	// The map is required. The API supports up to 255 options.
 	Criteria map[string]any
-}
-
-// isQuestion marks ChoiceQuestion as a question type.
-func (ChoiceQuestion) isQuestion() {}
-
-// MarshalJSON implements json.Marshaler.
-func (q ChoiceQuestion) MarshalJSON() ([]byte, error) {
-	return json.Marshal(struct {
-		Type         string         `json:"type"`
-		Instructions any            `json:"instructions"`
-		Criteria     map[string]any `json:"criteria"`
-	}{
-		Type:         "choice",
-		Instructions: q.Instructions,
-		Criteria:     q.Criteria,
-	})
 }
 
 // ScoreQuestion asks the model to evaluate the state against ordered levels.
@@ -106,8 +68,35 @@ type ScoreQuestion struct {
 	Criteria []any
 }
 
-// isQuestion marks ScoreQuestion as a question type.
-func (ScoreQuestion) isQuestion() {}
+func (NoulQuestion) isQuestion()   {}
+func (ScoreQuestion) isQuestion()  {}
+func (ChoiceQuestion) isQuestion() {}
+
+// MarshalJSON implements json.Marshaler
+func (q NoulQuestion) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Type         string        `json:"type"`
+		Instructions any           `json:"instructions"`
+		Criteria     *NoulCriteria `json:"criteria,omitempty"`
+	}{
+		Type:         "noul",
+		Instructions: q.Instructions,
+		Criteria:     q.Criteria,
+	})
+}
+
+// MarshalJSON implements json.Marshaler.
+func (q ChoiceQuestion) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Type         string         `json:"type"`
+		Instructions any            `json:"instructions"`
+		Criteria     map[string]any `json:"criteria"`
+	}{
+		Type:         "choice",
+		Instructions: q.Instructions,
+		Criteria:     q.Criteria,
+	})
+}
 
 // MarshalJSON implements json.Marshaler.
 func (q ScoreQuestion) MarshalJSON() ([]byte, error) {
@@ -121,3 +110,9 @@ func (q ScoreQuestion) MarshalJSON() ([]byte, error) {
 		Criteria:     q.Criteria,
 	})
 }
+
+var (
+	_ Question = NoulQuestion{}
+	_ Question = ChoiceQuestion{}
+	_ Question = ScoreQuestion{}
+)
