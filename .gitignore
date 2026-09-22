@@ -1,2 +1,6 @@
 .DS_Store
 .env
+.env.*
+!.env.example
+coverage.out
+/plan.md
