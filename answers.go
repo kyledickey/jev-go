@@ -15,39 +15,26 @@ type Answer interface {
 //
 // see https://docs.typesafe.ai/primitives/noul
 type NoulAnswer struct {
-	// Noul ranges from 0 to 1
-	Noul float64 `json:"noul"`
+	Noul float64 `json:"noul"` // 0-1
 }
 
 // Choice answer contains a selected option and its distribution.
 //
 // see https://docs.typesafe.ai/primitives/choice
 type ChoiceAnswer struct {
-	// Choice identifies the selected option by its original key.
-	Choice string `json:"choice"`
-
-	// Probabilities associates each option with its probability.
+	Choice        string             `json:"choice"` // The key of the selected option
 	Probabilities map[string]float64 `json:"probabilities"`
-
-	// Confidence reports the service's confidence in the answer.
-	Confidence float64 `json:"confidence"`
+	Confidence    float64            `json:"confidence"`
 }
 
 // ScoreAnswer contains a numeric score.
 //
 // see https://docs.typesafe.ai/primitives/score
 type ScoreAnswer struct {
-	// Score can fall between levels, so it is a float in the range of levels.
-	Score float64 `json:"score"`
-
-	// Legend associates level indicies with their descriptions.
-	Legend map[string]string `json:"legend"`
-
-	// Probabilities associates each level index with its probability.
+	Score         float64            `json:"score"`
+	Legend        map[string]string  `json:"legend"`
 	Probabilities map[string]float64 `json:"probabilities"`
-
-	// Confidence is the model's confidence in the answer.
-	Confidence float64 `json:"confidence"`
+	Confidence    float64            `json:"confidence"`
 }
 
 func (*NoulAnswer) isAnswer()   {}

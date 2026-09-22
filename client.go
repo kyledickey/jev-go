@@ -16,20 +16,13 @@ const (
 )
 
 var (
-	// ErrNilClientOpts means one or more of the options provided was nil
-	ErrNilClientOpts = errors.New("jev: client option must not be nil")
-	// ErrAPIKeyMissing means the API key was either missing or whitespace-only
-	ErrAPIKeyMissing = errors.New("jev: API key is required; set TYPESAFE_API_KEY or use WithAPIKey")
-	// ErrNilHTTPClient means the provided HTTP client was nil
-	ErrNilHTTPClient = errors.New("jev: HTTP client must not be nil")
-	// ErrInvalidBaseURL means the configured API base URL is invalid
+	ErrNilClientOpts  = errors.New("jev: client option must not be nil")
+	ErrAPIKeyMissing  = errors.New("jev: API key is required; set TYPESAFE_API_KEY or use WithAPIKey")
+	ErrNilHTTPClient  = errors.New("jev: HTTP client must not be nil")
 	ErrInvalidBaseURL = errors.New("jev: invalid base URL")
 )
 
-// Client holds all the configuration for Jev API requests
-//
-// Create clients with NewClient; the zero value is not ready for use.
-// Reuse a client across requests.
+// Client holds all the configuration for API requests
 type Client struct {
 	apiKey     string
 	httpClient *http.Client
@@ -46,23 +39,14 @@ type clientConfig struct {
 // Option configures a client during NewClient
 type Option func(*clientConfig)
 
-// WithAPIKey overrides the API key read from TYPESAFE_API_KEY
-//
-// An empty key also overrides the environment. NewClient will reject that
-// empty key.
+// WithAPIKey overrides the API key read from TYPESAFE_API_KEY.
 func WithAPIKey(key string) Option {
 	return func(cfg *clientConfig) {
 		cfg.apiKey = key
 	}
 }
 
-// WithHTTPClient replaces the default HTTP Client
-//
-// The supplied client is used as-is: the SDK does not copy it or change its
-// timeout, transport, or redirect policy.
-//
-// NewClient rejects a nil client. The caller should avoid changing the client
-// while it's handling requests.
+// WithHTTPClient replaces the default HTTP Client.
 func WithHTTPClient(client *http.Client) Option {
 	return func(cfg *clientConfig) {
 		cfg.httpClient = client
@@ -76,11 +60,9 @@ func WithBaseURL(baseURL string) Option {
 	}
 }
 
-// NewClient constructs a Jev client from defaults and provided options
+// NewClient constructs a Jev client from defaults and provided options.
 //
-// The API key defaults to the value of TYPESAFE_API_KEY. Changing the
-// environment afterward does not affect this client. The client does
-// not check the validity of the API key.
+// Reads TYPESAFE_API_KEY unless WithAPIKey is provided.
 func NewClient(opts ...Option) (*Client, error) {
 	cfg := clientConfig{
 		apiKey:  os.Getenv("TYPESAFE_API_KEY"),

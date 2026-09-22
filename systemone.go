@@ -21,37 +21,16 @@ type Usage struct {
 
 // SystemOneRequest contains the input for one evaluation.
 type SystemOneRequest struct {
-	// Model indicates the model to use.
-	//
-	// This defaults to "jev-latest".
-	Model string `json:"model"`
-
-	// State is the content evaluated by every question in this SystemOneRequest.
-	//
-	// Supply a string, a JSON-compatible object, or an array. Callers
-	// can use their own structs; encoding/json will honor those structs'
-	// exported fields and JSON tags.
-	//
-	// State is required.
-	State any `json:"state"`
-
-	// Questions maps caller-chosen identifiers to question definitions.
-	//
-	// The service returns answers under the same identifiers, callers can
-	// associate each answer with its original question.
+	Model     string              `json:"model"` // Defaults to jev-latest
+	State     any                 `json:"state"` // The content evaluated by the questions
 	Questions map[string]Question `json:"questions"`
 }
 
 // SystemOneResponse contains an evaluation's results and metadata.
 type SystemOneResponse struct {
-	// Model identifies the model that performed the evaluation.
-	Model string `json:"model"`
-
-	// Answers uses the same identifiers as the request's Questions map.
+	Model   string            `json:"model"`
 	Answers map[string]Answer `json:"answers"`
-
-	// Usage contains the service-reported token counts.
-	Usage Usage `json:"usage"`
+	Usage   Usage             `json:"usage"`
 }
 
 // MarshalJSON encodes an evaluation request.
@@ -104,7 +83,6 @@ func (r *SystemOneResponse) UnmarshalJSON(data []byte) error {
 }
 
 // SystemOne calls the API to evaluate the set of questions.
-//
 // Performs one attempt, no retry loop.
 func (c *Client) SystemOne(ctx context.Context, req SystemOneRequest) (*SystemOneResponse, error) {
 	if ctx == nil {

@@ -6,9 +6,6 @@ import (
 )
 
 // APIError represents a non-successful HTTP reponse from the API.
-//
-// Transport failures that happen before the API response are not
-// API errors.
 type APIError struct {
 	StatusCode int
 	Header     http.Header
